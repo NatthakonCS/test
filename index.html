@@ -4,110 +4,36 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>AtomCity</title>
+	<title>Werewolf Role Assigner</title>
 	<link rel="stylesheet" href="style.css">
-  <link rel="icon" href="./hero.png"
 </head>
 
 <body>
- <div id="hubScreen" class="screen">
-    
-    <div class="container"> 
-        
-        <h1>เลือกเกมที่ต้องการเล่น</h1> 
-        
-        <div class="game-menu"> 
-            
-            <button class="game-card" id="gotoWerewolfBtn">
-                <h2>Werewolf</h2>
-                <p>แววูฟ</p>
-            </button>
-            
-            <button class="game-card" id="gotoSpyfallBtn">
-                <h2>Spyfall</h2>
-                <p>สปายฟอล</p>
-            </button>
 
-        </div>
-    </div> 
-  </div>
+	<div class="container">
 
-	
-
-	<div id="werewolfGameContainer" class="screen hidden">
-		<div class="container">
-			<button class="btn-back" id="ww-backToHubBtn"> &lt; กลับหน้าแรก</button>
-
-			<div id="ww-setupScreen" class="screen">
-				<h1>Werewolf ดิวะ</h1>
-				<p>ใส่บทบาททั้งหมด (1 บรรทัด ต่อ 1 คน):</p>
-				<textarea id="ww-rolesTextarea" rows="10" placeholder="เช่น...&#10;Werewolf&#10;Seer&#10;Villager"></textarea>
-				<p id="ww-playerCount">จำนวนผู้เล่น: 0</p>
-				<button id="ww-startButton" class="btn-primary">เริ่มเกม</button>
-			</div>
-
-			<div id="ww-assignScreen" class="screen hidden">
-				<h1 id="ww-playerTurnText"></h1>
-				<p>กรุณาซ่อนหน้าจอจากคนอื่น</p>
-				<button id="ww-revealButton" class="btn-primary">กดเพื่อดูบทบาทของคุณ</button>
-			</div>
-
-			<div id="ww-revealScreen" class="screen hidden">
-				<p>บทบาทของคุณคือ...</p>
-				<h1 id="ww-roleDisplay" class="role-display"></h1>
-				<hr>
-				<h2>ส่งโทรศัพท์ให้คนถัดไป</h2>
-				<button id="ww-nextPlayerButton">ต่อไป</button>
-			</div>
+		<div id="setupScreen" class="screen">
+			<h1>Werewolf ดิวะ</h1>
+			<p>ใส่บทบาททั้งหมด (1 บรรทัด ต่อ 1 คน):</p>
+			<textarea id="rolesTextarea" rows="10" placeholder="เช่น...&#10;หมาป่า&#10;หมาป่า&#10;เซียร์&#10;บอดี้การ์ด&#10;ชาวบ้าน"></textarea>
+			<p id="playerCount">จำนวนผู้เล่น: 0</p>
+			<button id="startButton">เริ่มเกม</button>
 		</div>
-	</div>
 
-	<div id="spyfallGameContainer" class="screen hidden">
-		<div class="container">
-			<button class="btn-back" id="sf-backToHubBtn"> &lt; กลับหน้าแรก</button>
-
-			<div id="sf-setupScreen" class="screen">
-				<h1>ตั้งค่าเกม Spyfall</h1>
-				<label for="sf-playerCountSelect">จำนวนผู้เล่น (รวมสปาย):</label>
-				<select id="sf-playerCountSelect"></select>
-				<label>จำนวนสปาย:</label>
-				<div id="sf-spyCountButtons" class="button-group">
-					<button data-spy-count="1" class="selected">1 คน</button>
-					<button data-spy-count="2">2 คน</button>
-				</div>
-				<button id="sf-startGameButton" class="btn-primary">เริ่มเกม</button>
-			</div>
-
-			<div id="sf-assignScreen" class="screen hidden">
-				<h1 id="sf-playerTurnText"></h1>
-				<p>กรุณาซ่อนหน้าจอจากคนอื่น</p>
-				<button id="sf-revealButton" class="btn-primary">กดเพื่อดูบทบาทของคุณ</button>
-			</div>
-
-			<div id="sf-revealScreen" class="screen hidden">
-				<p>บทบาทของคุณคือ...</p>
-				<h2 id="sf-roleDisplay" class="role-display"></h2>
-				<p>สถานที่คือ...</p>
-				<h1 id="sf-locationDisplay" class="location-display"></h1>
-				<hr>
-				<h2>ส่งโทรศัพท์ให้คนถัดไป</h2>
-				<button id="sf-nextPlayerButton">ต่อไป</button>
-			</div>
-
-			<div id="sf-timerScreen" class="screen hidden">
-				<h1>ทุกคนได้บทบาทแล้ว</h1>
-				<p>เลือกเวลาสำหรับรอบนี้:</p>
-				<div id="sf-timeSelectButtons" class="button-group large">
-					<button data-time-min="6">6:00</button>
-					<button data-time-min="8">8:00</button>
-					<button data-time-min="10">10:00</button>
-					<button data-time-min="15">15:00</button>
-				</div>
-				<h1 id="sf-timerDisplay">00:00</h1>
-				<button id="sf-startTimerButton" class="btn-primary" disabled>เริ่มจับเวลา</button>
-				<button id="sf-playAgainButton" class="hidden">เล่นเกมนี้อีกครั้ง</button>
-			</div>
+		<div id="assignScreen" class="screen hidden">
+			<h1 id="playerTurnText"></h1>
+			<p>กรุณาซ่อนหน้าจอจากคนอื่น</p>
+			<button id="revealButton">กดเพื่อดูบทบาท</button>
 		</div>
+
+		<div id="revealScreen" class="screen hidden">
+			<p>บทบาทของคุณคือ...</p>
+			<h1 id="roleDisplay"></h1>
+			<hr>
+			<h2>ส่งโทรศัพท์ให้คนถัดไป</h2>
+			<button id="nextPlayerButton">ต่อไป</button>
+		</div>
+
 	</div>
 
 	<script src="./main.js" type="module"></script>
