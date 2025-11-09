@@ -1,134 +1,64 @@
-// --- 1. ตัวแปรเก็บสถานะของเกม (State) ---
-let roles: string[] = [];
-let currentPlayerIndex: number = 0;
+const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
 
-// --- 2. การเข้าถึงองค์ประกอบ HTML (DOM Elements) ---
-// (ใช้ '!' เพื่อบอก TypeScript ว่าเรามั่นใจว่าองค์ประกอบนี้มีอยู่)
+const app = express();
+const server = http.createServer(app);
+// ตั้งค่า Socket.IO ให้ทำงานกับ server ที่สร้างขึ้น
+const io = socketIo(server); 
 
-// หน้าจอ
-const setupScreen = document.getElementById('setupScreen')!;
-const assignScreen = document.getElementById('assignScreen')!;
-const revealScreen = document.getElementById('revealScreen')!;
+const PORT = 3000;
 
-// องค์ประกอบในหน้า Setup
-const rolesTextarea = document.getElementById('rolesTextarea') as HTMLTextAreaElement;
-const playerCountText = document.getElementById('playerCount')!;
-const startButton = document.getElementById('startButton')!;
+// ให้ Server เสิร์ฟไฟล์ index.html
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
 
-// องค์ประกอบในหน้า Assign
-const playerTurnText = document.getElementById('playerTurnText')!;
-const revealButton = document.getElementById('revealButton')!;
+// การจัดการการเชื่อมต่อ Socket.IO
+io.on('connection', (socket) => {
+    console.log('ผู้ใช้ใหม่เชื่อมต่อแล้ว:', socket.id);
 
-// องค์ประกอบในหน้า Reveal
-const roleDisplay = document.getElementById('roleDisplay')!;
-const nextPlayerButton = document.getElementById('nextPlayerButton')!;
+    // 1. ผู้ใช้เข้าร่วมห้อง (รับ roomNumber จาก client)
+    socket.on('joinRoom', (roomNumber) => {
+        // ออกจากห้องเก่า (ถ้ามี) ก่อนเข้าร่วมห้องใหม่
+        const currentRooms = Array.from(socket.rooms).filter(room => room !== socket.id);
+        currentRooms.forEach(room => {
+            socket.leave(room);
+            console.log(`ผู้ใช้ ${socket.id} ออกจากห้อง ${room}`);
+        });
 
-// --- 3. ฟังก์ชันสุ่ม Array (Fisher-Yates Shuffle) ---
-// ฟังก์ชันสำคัญมาก! เพื่อให้แน่ใจว่าการสุ่มยุติธรรม
-function shuffleArray<T>(array: T[]): T[] {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]]; // สลับที่
-  }
-  return array;
-}
+        // เข้าร่วมห้องใหม่
+        socket.join(roomNumber);
+        console.log(`ผู้ใช้ ${socket.id} เข้าร่วมห้อง ${roomNumber}`);
+        
+        // ส่งข้อความต้อนรับกลับไปที่ห้องนั้นๆ
+        io.to(roomNumber).emit('chatMessage', `*** ผู้ใช้ ${socket.id.substring(0, 4)} เข้าร่วมห้อง ${roomNumber} ***`);
+    });
 
-// --- 4. ฟังก์ชันควบคุมการแสดงผลหน้าจอ ---
-function showScreen(screenId: 'setup' | 'assign' | 'reveal') {
-  // ซ่อนทุกหน้าจอก่อน
-  setupScreen.classList.add('hidden');
-  assignScreen.classList.add('hidden');
-  revealScreen.classList.add('hidden');
+    // 2. รับข้อความจากผู้ใช้
+    socket.on('chatMessage', (data) => {
+        const { roomNumber, message } = data;
+        
+        // ตรวจสอบว่าผู้ใช้กำลังอยู่ในห้องนั้นจริงหรือไม่
+        if (socket.rooms.has(roomNumber)) {
+            // ส่งข้อความไปยัง "ทุกคน" ในห้องนั้น "ยกเว้น" ผู้ส่ง
+            socket.to(roomNumber).emit('chatMessage', `ห้อง ${roomNumber} - ${socket.id.substring(0, 4)}: ${message}`);
+            // ส่งข้อความกลับไปที่ "ผู้ส่งเอง" เพื่อยืนยัน
+            socket.emit('chatMessage', `คุณ: ${message}`);
+        } else {
+            // กรณีไม่ได้อยู่ในห้อง
+            socket.emit('chatMessage', 'คุณยังไม่ได้เข้าร่วมห้อง หรือห้องไม่ถูกต้อง');
+        }
+    });
 
-  // แสดงเฉพาะหน้าจอที่เลือก
-  if (screenId === 'setup') {
-    setupScreen.classList.remove('hidden');
-  } else if (screenId === 'assign') {
-    assignScreen.classList.remove('hidden');
-  } else if (screenId === 'reveal') {
-    revealScreen.classList.remove('hidden');
-  }
-}
+    // 3. เมื่อผู้ใช้ออกจากระบบ
+    socket.on('disconnect', () => {
+        console.log('ผู้ใช้ออกจากระบบ:', socket.id);
+    });
+});
 
-// --- 5. ฟังก์ชันหลักของเกม ---
-
-/**
- * ฟังก์ชัน: เริ่มเกม
- * - อ่านค่าจาก textarea
- * - สุ่มบทบาท
- * - เปลี่ยนไปหน้า assign
- */
-function startGame() {
-  const rolesInput = rolesTextarea.value;
-
-  // กรองค่าว่าง (กันการ enter บรรทัดเปล่า)
-  const allRoles = rolesInput.split('\n').filter(role => role.trim() !== '');
-
-  if (allRoles.length < 2) {
-    alert("กรุณาใส่บทบาทอย่างน้อย 2 คน!");
-    return;
-  }
-
-  // สุ่มบทบาท
-  roles = shuffleArray(allRoles);
-  currentPlayerIndex = 0;
-
-  // อัปเดตข้อความสำหรับคนแรก
-  playerTurnText.innerText = `ผู้เล่นคนที่ ${currentPlayerIndex + 1}`;
-
-  // ไปยังหน้าสุ่ม
-  showScreen('assign');
-}
-
-/**
- * ฟังก์ชัน: แสดงบทบาท
- * - แสดงบทบาทของผู้เล่นปัจจุบัน
- * - เปลี่ยนไปหน้า reveal
- */
-function revealRole() {
-  roleDisplay.innerText = roles[currentPlayerIndex];
-  showScreen('reveal');
-}
-
-/**
- * ฟังก์ชัน: ผู้เล่นคนถัดไป
- * - ตรวจสอบว่าครบทุกคนหรือยัง
- * - ถ้ายัง: ไปยังหน้า assign ของคนถัดไป
- * - ถ้าครบแล้ว: กลับไปหน้า setup (ตามที่คุณต้องการ)
- */
-function nextPlayer() {
-  currentPlayerIndex++;
-
-  if (currentPlayerIndex < roles.length) {
-    // ยังมีผู้เล่นเหลือ
-    playerTurnText.innerText = `ผู้เล่นคนที่ ${currentPlayerIndex + 1}`;
-    showScreen('assign');
-  } else {
-    // ครบทุกคนแล้ว
-    alert("ทุกคนได้รับบทบาทครบแล้ว! เริ่มเกมได้");
-    // รีเซ็ตค่าและกลับไปหน้าแรก
-    rolesTextarea.value = '';
-    playerCountText.innerText = 'จำนวนผู้เล่น: 0';
-    showScreen('setup');
-  }
-}
-
-/**
- * ฟังก์ชัน: อัปเดตจำนวนผู้เล่นขณะพิมพ์
- */
-function updatePlayerCount() {
-  const rolesInput = rolesTextarea.value;
-  const allRoles = rolesInput.split('\n').filter(role => role.trim() !== '');
-  playerCountText.innerText = `จำนวนผู้เล่น: ${allRoles.length}`;
-}
-
-
-// --- 6. การเชื่อมต่อ Event Listeners ---
-startButton.addEventListener('click', startGame);
-revealButton.addEventListener('click', revealRole);
-nextPlayerButton.addEventListener('click', nextPlayer);
-rolesTextarea.addEventListener('input', updatePlayerCount); // อัปเดตจำนวนผู้เล่นแบบ Real-time
-
-// --- 7. เริ่มต้นแอป ---
-// เมื่อโหลดเว็บ ให้แสดงหน้า setup เสมอ
-showScreen('setup');
+// เริ่ม Server
+server.listen(PORT, () => {
+    console.log(`Server กำลังทำงานที่ http://localhost:${PORT}`);
+    console.log('เปิดเบราว์เซอร์และลองใช้หลายๆ แท็บ/หน้าต่าง เพื่อทดสอบ');
+});
