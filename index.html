@@ -1,42 +1,94 @@
 <!DOCTYPE html>
-<html lang="th">
-
+<html>
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Werewolf Role Assigner</title>
-	<link rel="stylesheet" href="style.css">
+    <title>Room Chat - คู่หูเขียนโค้ด</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 20px; }
+        #room-control { margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        #messages { list-style-type: none; padding: 0; height: 300px; overflow-y: scroll; border: 1px solid #eee; margin-bottom: 10px; }
+        #messages li { padding: 5px 10px; border-bottom: 1px solid #eee; }
+        #messages li:nth-child(odd) { background: #f9f9f9; }
+        .system-msg { color: #888; font-style: italic; }
+        .user-msg { font-weight: bold; }
+    </style>
 </head>
-
 <body>
 
-	<div class="container">
+    <h1>ห้องแชทแบบ Real-Time</h1>
+    <p>เปิดหลายๆ หน้าต่างเบราว์เซอร์ แล้วลองเข้าร่วมห้องเดียวกันเพื่อทดสอบ</p>
 
-		<div id="setupScreen" class="screen">
-			<h1>Werewolf ดิวะ</h1>
-			<p>ใส่บทบาททั้งหมด (1 บรรทัด ต่อ 1 คน):</p>
-			<textarea id="rolesTextarea" rows="10" placeholder="เช่น...&#10;หมาป่า&#10;หมาป่า&#10;เซียร์&#10;บอดี้การ์ด&#10;ชาวบ้าน"></textarea>
-			<p id="playerCount">จำนวนผู้เล่น: 0</p>
-			<button id="startButton">เริ่มเกม</button>
-		</div>
+    <div id="room-control">
+        <label for="room-input">เลขห้อง:</label>
+        <input id="room-input" type="text" placeholder="ป้อนเลขห้อง เช่น A101" value="Room-1" required>
+        <button onclick="joinRoom()">เข้าร่วมห้อง</button>
+        <p id="current-room">สถานะ: ยังไม่ได้เข้าร่วมห้อง</p>
+    </div>
 
-		<div id="assignScreen" class="screen hidden">
-			<h1 id="playerTurnText"></h1>
-			<p>กรุณาซ่อนหน้าจอจากคนอื่น</p>
-			<button id="revealButton">กดเพื่อดูบทบาท</button>
-		</div>
+    <ul id="messages"></ul>
 
-		<div id="revealScreen" class="screen hidden">
-			<p>บทบาทของคุณคือ...</p>
-			<h1 id="roleDisplay"></h1>
-			<hr>
-			<h2>ส่งโทรศัพท์ให้คนถัดไป</h2>
-			<button id="nextPlayerButton">ต่อไป</button>
-		</div>
+    <form id="form" onsubmit="sendMessage(event)">
+        <input id="input" autocomplete="off" placeholder="พิมพ์ข้อความ..." required />
+        <button>ส่ง</button>
+    </form>
 
-	</div>
+    <script src="/socket.io/socket.io.js"></script>
 
-	<script src="./main.js" type="module"></script>
+    <script>
+        // เชื่อมต่อกับเซิร์ฟเวอร์
+        const socket = io();
+        const messages = document.getElementById('messages');
+        const roomInput = document.getElementById('room-input');
+        const currentRoomDisplay = document.getElementById('current-room');
+        let currentRoom = null; // ตัวแปรสำหรับเก็บเลขห้องที่เข้าร่วมปัจจุบัน
+
+        // ฟังก์ชันเข้าร่วมห้อง
+        function joinRoom() {
+            const newRoom = roomInput.value.trim();
+            if (newRoom) {
+                // ส่ง event 'joinRoom' ไปยัง Server พร้อมเลขห้อง
+                socket.emit('joinRoom', newRoom);
+                currentRoom = newRoom;
+                currentRoomDisplay.textContent = `สถานะ: อยู่ในห้อง ${currentRoom}`;
+            } else {
+                alert('โปรดป้อนเลขห้อง');
+            }
+        }
+
+        // ฟังก์ชันส่งข้อความ
+        function sendMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('input');
+            const message = input.value.trim();
+
+            if (message && currentRoom) {
+                // ส่ง event 'chatMessage' ไปยัง Server พร้อมเลขห้องและข้อความ
+                socket.emit('chatMessage', {
+                    roomNumber: currentRoom,
+                    message: message
+                });
+                input.value = ''; // ล้าง input
+            } else if (!currentRoom) {
+                alert('โปรดเข้าร่วมห้องก่อนส่งข้อความ');
+            }
+        }
+
+        // รับข้อความจาก Server
+        socket.on('chatMessage', (msg) => {
+            const item = document.createElement('li');
+            item.textContent = msg;
+
+            // ตรวจสอบว่าเป็นข้อความระบบหรือไม่
+            if (msg.includes('***')) {
+                item.classList.add('system-msg');
+            } else if (msg.startsWith('คุณ:')) {
+                item.classList.add('user-msg');
+            }
+            
+            messages.appendChild(item);
+            // เลื่อนไปข้อความล่าสุด
+            messages.scrollTop = messages.scrollHeight;
+        });
+    </script>
+
 </body>
-
 </html>
